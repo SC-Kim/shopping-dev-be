@@ -1,6 +1,6 @@
 const Product = require("../models/Product")
 
-const PAGE_SIZE = 1
+const PAGE_SIZE = 3
 const productController = {}
 
 productController.createProduct = async (req, res) => {
@@ -34,7 +34,10 @@ productController.getProducts = async (req, res) => {
         //     const products = await Product.find({});
         // }
 
-        const cond = name ? { name: { $regex: name, $options: 'i' } } : {}
+        const cond = name ? {
+            name: { $regex: name, $options: 'i' },
+            isDeleted: false
+        } : {isDeleted: false}
         let query = Product.find(cond)
         let response = { status: "success", };
         if (page) {
@@ -54,5 +57,51 @@ productController.getProducts = async (req, res) => {
     }
 }
 
+productController.updateProduct = async (req, res) => {
+    try {
+        const productId = req.params.id;
+        const { sku, name, size, image, price, description, category, stock, status } = req.body
+
+        const product = await Product.findByIdAndUpdate(
+            { _id: productId },
+            { sku, name, size, image, price, description, category, stock, status },
+            { new: true }
+        );
+        if (!product) throw new Error("Item doesn't exist!!")
+        res.status(200).json({ status: "success", data: product })
+    } catch (error) {
+        res.status(400).json({ status: "fail", error: error.message })
+    }
+}
+
+productController.deleteProduct = async (req, res) => {
+    try {
+        const productId = req.params.id;
+
+        const product = await Product.findByIdAndUpdate(
+            { _id: productId },
+            { isDeleted: true }
+        );
+       
+        if (!product) throw new Error("No item found")
+        res.status(200).json({ status: "success" })
+
+    } catch (error) {
+        res.status(400).json({ status: "fail", error: error.message })
+    }
+}
+
+productController.getProductById = async (req, res)=>{
+    try{
+
+        const productId = req.params.id;
+
+        const product = await Product.findById(productId);
+        if(!product) throw new Error("No item found!!")
+        res.status(200).json({status:"success", data:product})
+    }catch(error){
+        res.status(400).json({ status: "fail", error: error.message })
+    }
+}
 
 module.exports = productController
