@@ -42,7 +42,7 @@ cartController.getCart = async (req, res) => {
             path: 'items.productId',
             select: undefined             //'name price image' // 필요한 필드만 선택
         });
-        
+        // console.log("userId??", userId)
         // const cart = await Cart.findOne({userId}).populate({
         //     path:'items',
         //     populate:{
