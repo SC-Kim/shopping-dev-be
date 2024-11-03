@@ -1,9 +1,10 @@
 const jwt = require("jsonwebtoken")
 const User = require("../models/User")
 const bcrypt = require("bcryptjs")
+const { OAuth2Client } = require('google-auth-library');
 require("dotenv").config()
-const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY
-
+const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const authController = {}
 
 authController.loginWithEmail = async (req, res) => {
@@ -33,7 +34,7 @@ authController.authenticate = async (req, res, next) => {
         const token = tokenString.replace("Bearer ", "")
         jwt.verify(token, JWT_SECRET_KEY, (error, payload) => {
             if (error) throw new Error("invalid token")
-            req.userId = payload._id   
+            req.userId = payload._id
         })
         next();
     } catch (error) {
@@ -41,16 +42,49 @@ authController.authenticate = async (req, res, next) => {
     }
 }
 
-authController.checkAdminPermission = async(req, res, next) => {
-    try{
+authController.checkAdminPermission = async (req, res, next) => {
+    try {
         // token
-        const {userId} = req
+        const { userId } = req
         const user = await User.findById(userId)
-        if(user.level !== "admin") throw new Error("no permission")
+        if (user.level !== "admin") throw new Error("no permission")
         next();
 
-    }catch(error){
-        res.status(400).json({status:"fail", error:error.message})
+    } catch (error) {
+        res.status(400).json({ status: "fail", error: error.message })
+    }
+}
+
+authController.loginWithGoogle = async (req, res) => {
+    try {
+        const { token } = req.body;
+        const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID)
+        const ticket = await googleClient.verifyIdToken({
+            idToken: token,
+            audience: GOOGLE_CLIENT_ID,
+        });
+        const { email, name } = ticket.getPayload()
+        let user = await User.findOne({ email })
+
+        if (!user) {
+            // 유저를 새로 생성
+            const randomPassword = "" + Math.floor(Math.random() * 100000000)
+            const salt = await bcrypt.genSalt(10)
+            const newPassword = await bcrypt.hash(randomPassword, salt)
+            user = new User({
+                name: name,
+                email: email,
+                password: newPassword
+            })
+            await user.save();
+        }
+
+        // 토큰 발행 하고 리턴
+        const sessionToken = await user.generateToken()
+        res.status(200).json({status:"success", user, token:sessionToken});
+
+    } catch (error) {
+        res.status(400).json({ status: "fail", error: error.message })
     }
 }
 
