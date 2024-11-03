@@ -19,7 +19,8 @@ cartController.addItemToCart = async (req, res) => {
         const existItem = cart.items.find(
             (item) => item.productId.equals(productId) && item.size === size)  //mongoose objectid 타임은 equals 함수를 활용해서 비교한다. 
         if (existItem) {
-            throw new Error("아이템이 이미 카트에 담겨 있습니다.")
+            // 에러 응답을 바로 반환
+            return res.status(400).json({ status: "fail", error: "아이템이 이미 카트에 담겨 있습니다." });
         }
 
         // 카트에 아이템 추가
