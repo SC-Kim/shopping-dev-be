@@ -36,8 +36,8 @@ productController.getProducts = async (req, res) => {
 
         const cond = name ? {
             name: { $regex: name, $options: 'i' },
-            isDeleted: false
-        } : { isDeleted: false }
+            isDeleted: false, status: "active"
+        } : { isDeleted: false, status: "active" }
         let query = Product.find(cond)
         let response = { status: "success", };
         if (page) {
@@ -114,25 +114,16 @@ productController.checkStock = async (item) => {
         return { isVerify: false, message: `${product.name}의 ${item.size} 재고가 부족합니다. ` }
     }
 
-    // 충분하다면 => 재고 - qty 처리하고 재고 업데이트  
-    const newStock = { ...product.stock }
-    newStock[item.size] = newStock[item.size] - item.qty
-    product.stock = newStock
-    await product.save()
-
     return { isVerify: true }
-
-
 }
 
 productController.checkItemListStock = async (itemList) => {
     const insufficientStockItems = []
-    //재고 확인
 
     await Promise.all(
         itemList.map(async (item) => {
             const stockCheck = await productController.checkStock(item)
-            
+
             // 재고가 부족한 경우 처리
             if (!stockCheck.isVerify) {
                 insufficientStockItems.push({ item, message: stockCheck.message })
@@ -140,6 +131,42 @@ productController.checkItemListStock = async (itemList) => {
             return stockCheck;
         })
     )
+
+
+    // 재고 부족이 없는 경우에만 재고 업데이트 수행
+    if (insufficientStockItems.length === 0) {
+        // productId별로 아이템을 묶기 위해 Map을 사용합니다.
+        const productMap = new Map();
+
+        // 각 item을 productId를 키로 하여 Map에 저장
+        itemList.forEach((item) => {
+            if (!productMap.has(item.productId)) {
+                productMap.set(item.productId, []);
+            }
+            productMap.get(item.productId).push(item);
+        });
+
+        // 각 productId에 대해 재고 업데이트 및 저장
+        await Promise.all(
+            Array.from(productMap.entries()).map(async ([productId, items]) => {
+                const product = await Product.findById(productId);
+                if (!product) throw new Error(`Product with ID ${productId} not found`);
+
+                const newStock = { ...product.stock };
+
+                // 각 size별로 재고를 차감합니다.
+                items.forEach(item => {
+                    if (newStock[item.size] !== undefined) {
+                        newStock[item.size] -= item.qty;
+                    }
+                });
+
+                // 업데이트된 재고를 제품에 반영하고 저장합니다.
+                product.stock = newStock;
+                await product.save();
+            })
+        );
+    }
 
     return insufficientStockItems
 }

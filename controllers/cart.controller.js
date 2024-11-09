@@ -43,15 +43,7 @@ cartController.getCart = async (req, res) => {
             path: 'items.productId',
             select: undefined             //'name price image' // 필요한 필드만 선택
         });
-        // console.log("userId??", userId)
-        // const cart = await Cart.findOne({userId}).populate({
-        //     path:'items',
-        //     populate:{
-        //         path: "productId",
-        //         model: "Product",
-        //     },
-        // });
-        // 장바구니가 없는 경우 빈 장바구니 데이터로 초기화
+        
         if (!cart) {
             cart = { items: [], totalPrice: 0 };
         }

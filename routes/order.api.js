@@ -14,4 +14,7 @@ router.put(
   orderController.updateOrder
 );
 
+router.get("/recent-address", authController.authenticate, orderController.fetchRecentAddress);
+router.get("/previous-addresses", authController.authenticate, orderController.fetchPreviousAddresses);
+
 module.exports = router
